@@ -10,7 +10,7 @@ builder.Services.AddControllers();
  
 builder.Services.AddHttpClient<GreenhouseService>();
 builder.Services.AddScoped<JobImportService>();
-
+builder.Services.AddScoped<JobSourceService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options=>
     options.UseSqlServer(

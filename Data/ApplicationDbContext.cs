@@ -9,6 +9,7 @@ public class ApplicationDbContext:DbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options):base(options){}
 
     public DbSet<Job> Jobs => Set<Job>();
+    public DbSet<JobSource> JobSources => Set<JobSource>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,6 +22,15 @@ public class ApplicationDbContext:DbContext
                 j.ExternalJobId
             }
         ).IsUnique();
+        modelBuilder.Entity<JobSource>().HasIndex(
+            j => new
+            {
+                j.Platform,
+                j.BoardToken
+            }
+        ).IsUnique();
+
+
     }
 
 

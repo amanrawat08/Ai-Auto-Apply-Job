@@ -61,4 +61,45 @@ public class JobImportService
 
 
     }
+
+
+    public async Task<object> ImportAllJobsAsync()
+    {
+        var sources = await _context.JobSources.
+        Where(j => j.Platform == "Greenhouse" && j.IsActive).ToListAsync();
+
+        int totalImported = 0;
+        int successfullSources = 0;
+
+        var failedSources = new List<string>();
+
+        foreach (var source in sources)
+        {
+            try
+            {
+                int imported = await ImportJobAsync(source.BoardToken);
+                totalImported += imported;
+                successfullSources++;
+
+                source.LastSyncedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                failedSources.Add(source.CompanyName);
+                // Log errors instead of silently ignoring them
+                Console.WriteLine(
+                    $"Failed to import {source.CompanyName}: {ex.Message}");
+            }
+        }
+
+        return new
+        {
+            TotalSources = sources.Count,
+            SuccessfullSources = successfullSources,
+            FailedSources = failedSources,
+            TotalImported = totalImported
+        };
+
+    }
 }

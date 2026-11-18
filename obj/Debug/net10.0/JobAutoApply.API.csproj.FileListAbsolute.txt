@@ -165,3 +165,4 @@ E:\Ai job AutoApply Saas\JobAutoApply.API\bin\Debug\net10.0\runtimes\win-arm64\n
 E:\Ai job AutoApply Saas\JobAutoApply.API\bin\Debug\net10.0\runtimes\win-x64\native\msalruntime.dll
 E:\Ai job AutoApply Saas\JobAutoApply.API\bin\Debug\net10.0\runtimes\win-x86\native\msalruntime_x86.dll
 E:\Ai job AutoApply Saas\JobAutoApply.API\bin\Debug\net10.0\runtimes\win\lib\net10.0\System.Security.Cryptography.Pkcs.dll
+E:\Ai job AutoApply Saas\JobAutoApply.API\obj\Debug\net10.0\JobAutoApply.API.sourcelink.json

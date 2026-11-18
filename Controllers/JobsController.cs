@@ -45,5 +45,12 @@ namespace JobAutoApply.API.Controllers
             });
 
         }
+
+        [HttpPost("import-all")]
+        public async Task<IActionResult> ImportAllJobs()
+        {
+            var result = await _jobImportService.ImportAllJobsAsync();
+            return Ok(result);
+        }
     }
 }
