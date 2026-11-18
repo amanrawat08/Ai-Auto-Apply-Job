@@ -1,0 +1,12 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio local files
+.vs/
+*.user
+*.suo
+
+# Local configuration
+appsettings.Local.json
+.env
