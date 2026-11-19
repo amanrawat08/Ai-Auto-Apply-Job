@@ -1,8 +1,6 @@
-using System.Numerics;
-using JobAutoApply.API.Interface;
-using JobAutoApply.API.Providers;
-using JobAutoApply.API.Services;
-using Microsoft.AspNetCore.Http;
+ 
+using JobAutoApply.API.Interface; 
+using JobAutoApply.API.Services; 
 using Microsoft.AspNetCore.Mvc;
 
 namespace JobAutoApply.API.Controllers
@@ -46,7 +44,20 @@ namespace JobAutoApply.API.Controllers
         [HttpPost("import/{boardToken}")]
         public async Task<IActionResult> ImportJobs(string boardToken)
         {
-            var imported = await _jobImportService.ImportJobAsync(boardToken);
+            var provider = _jobProviders.FirstOrDefault(
+                p=>p.PlatformName.Equals("Greenhouse",StringComparison.OrdinalIgnoreCase)
+            );
+
+            if (provider == null)
+            {
+                return NotFound(new
+                {
+                    message = "Greenhouse provider not registered"
+                });
+            }
+
+            int imported = await _jobImportService.ImportJobsAsync(provider, boardToken);
+            
 
             return Ok(new
             {
@@ -103,7 +114,7 @@ namespace JobAutoApply.API.Controllers
 
         // provider ashby using interface
         [HttpGet("providers/{platform}/{boardToken}")]
-        public async Task<IActionResult> TestAshbyProvider(string boardToken, string platform)
+        public async Task<IActionResult> TestAshbyProvider( string platform, string boardToken)
         {
             var provider = _jobProviders.FirstOrDefault(
                 p => p.PlatformName.Equals(
@@ -119,5 +130,31 @@ namespace JobAutoApply.API.Controllers
             return Ok(new { Platform = provider.PlatformName, boardToken = boardToken, TotalJobs = jobs.Count, Jobs = jobs });
         }
 
+
+        [HttpPost("import/{platform}/{boardToken}")]
+        public async Task<IActionResult> ImportFromProvider(string platform, string boardToken )
+        {
+            var provider = _jobProviders.FirstOrDefault(
+                p=>p.PlatformName.Equals(
+                    platform,StringComparison.OrdinalIgnoreCase
+                )
+            );
+
+            if (provider == null)
+            {
+                return NotFound(new
+                {
+                    message = $"Provider '{platform}' not found"
+                });
+            }
+
+            int imported = await _jobImportService.ImportJobsAsync(
+                provider,boardToken
+            );
+
+            return Ok(
+                new {platform = provider.PlatformName, boardToken, imported}
+            );
+        }
     }
 }

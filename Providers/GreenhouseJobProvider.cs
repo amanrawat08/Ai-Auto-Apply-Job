@@ -32,7 +32,7 @@ public class GreenhouseJobProvider : IJobProvider
                 Source = PlatformName,
                 Title = j.Title,
                 Company = boardToken,
-                Location = j?.Location?.Name ?? "Unknown",
+                Location = j.Location?.Name ?? "Unknown",
                 Description = j.Content,
                 EmploymentType = null,
                 Category = null,

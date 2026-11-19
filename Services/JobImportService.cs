@@ -1,7 +1,7 @@
+
 using JobAutoApply.API.Data;
-using JobAutoApply.API.DTOs;
+using JobAutoApply.API.Interface;
 using JobAutoApply.API.Models;
-using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.EntityFrameworkCore;
 
 namespace JobAutoApply.API.Services;
@@ -9,68 +9,25 @@ namespace JobAutoApply.API.Services;
 public class JobImportService
 {
     private readonly ApplicationDbContext _context;
-    private readonly GreenhouseService _greenHouse;
-    private readonly LeverService _leverService;
-    private readonly AshbyService _ashbyService;
+    private readonly IEnumerable<IJobProvider> _providers;
+    private readonly ILogger<JobImportService> _logger;
 
-    public JobImportService(ApplicationDbContext context, GreenhouseService greenhouse, LeverService leverService, AshbyService ashbyService)
+    public JobImportService(
+        ApplicationDbContext context,
+        IEnumerable<IJobProvider> jobProviders,
+        ILogger<JobImportService> logger)
     {
         _context = context;
-        _greenHouse = greenhouse;
-        _leverService = leverService;
-        _ashbyService = ashbyService;
+        _providers = jobProviders;
+        _logger = logger;
     }
 
-    public async Task<int> ImportJobAsync(string boardToken)
-    {
-        var response = await _greenHouse.GetJobAsync(boardToken);
-
-        if (response == null) return 0;
-
-        var jobs = response.Jobs;
-
-        var existingIds = (
-            await _context.Jobs.Where(j => j.Source == "Greenhouse").Select(j => j.ExternalJobId).ToListAsync()
-        ).ToHashSet();
-
-
-        var newJobs = new List<Job>();
-
-        foreach (var item in jobs)
-        {
-            string externalId = item.Id.ToString();
-
-            if (existingIds.Contains(externalId)) continue;
-
-            newJobs.Add(
-                new Job
-                {
-                    ExternalJobId = externalId,
-                    Source = "Greenhouse",
-                    Title = item.Title,
-                    Company = boardToken,
-                    Location = item.Location?.Name ?? "Unknown",
-                    Description = item.Content,
-                    JobUrl = item.JobUrl
-                }
-            );
-
-            existingIds.Add(externalId);
-        }
-        _context.Jobs.AddRange(newJobs);
-
-        await _context.SaveChangesAsync();
-
-        return newJobs.Count();
-
-
-    }
-
-
+    // Import jobs from all active sources
     public async Task<object> ImportAllJobsAsync()
     {
-        var sources = await _context.JobSources.
-        Where(j => j.IsActive).ToListAsync();
+        var sources = await _context.JobSources
+            .Where(j => j.IsActive)
+            .ToListAsync();
 
         int totalImported = 0;
         int successfullSources = 0;
@@ -81,29 +38,44 @@ public class JobImportService
         {
             try
             {
-                int imported = source.Platform.ToLowerInvariant()
-                switch
+                // Find matching ATS provider
+                var provider = _providers.FirstOrDefault(
+                    p => p.PlatformName.Equals(
+                        source.Platform,
+                        StringComparison.OrdinalIgnoreCase)
+                );
+
+                if (provider == null)
                 {
-                    "greenhouse" => await ImportJobAsync(source.BoardToken),
-                    "lever" => await ImportLeverJobsAsync(source.BoardToken),
-                    "ashby" => await ImportAshbyJobsAsync(source.BoardToken),
-                    _ => throw new NotSupportedException(
-                    $"Unsupported platform: {source.Platform}")
-                };
+                    throw new NotSupportedException(
+                        $"Provider {source.Platform} not registered."
+                    );
+                }
+
+                // Import jobs using common method
+                int imported = await ImportJobsAsync(
+                    provider,
+                    source.BoardToken
+                );
+
                 totalImported += imported;
                 successfullSources++;
 
+                // Update successful sync timestamp
                 source.LastSyncedAt = DateTime.UtcNow;
+
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 failedSources.Add(source.CompanyName);
 
-                Console.WriteLine(
-                    $"Import failed for {source.CompanyName}");
-
-                Console.WriteLine(ex.ToString());
+                _logger.LogError(
+                    ex,
+                    "Import failed for {Company} on {Platform}",
+                    source.CompanyName,
+                    source.Platform
+                );
             }
         }
 
@@ -114,105 +86,85 @@ public class JobImportService
             FailedSources = failedSources,
             TotalImported = totalImported
         };
-
     }
 
-    // Save Lever Jobs in SQL Server
-    public async Task<int> ImportLeverJobsAsync(string companyToken)
+    // Common import method for all ATS providers
+    public async Task<int> ImportJobsAsync(IJobProvider provider,string boardToken)
     {
-        var response = await _leverService.GetJobsAsync(companyToken);
+        // Step 1: Fetch normalized jobs
+        var jobs = await provider.GetJobsAsync(boardToken);
 
-        var externalsId = response.Select(j => j.Id).ToList();
-
-        var existingIds = (await _context.Jobs.Where(
-            j => j.Source == "Lever" && externalsId.Contains(j.ExternalJobId)
-        ).Select(j => j.ExternalJobId).ToListAsync()).ToHashSet();
-
-
-        var newJobs = new List<Job>();
-
-        foreach (var item in response)
+        if (jobs == null || jobs.Count == 0)
         {
-            if (existingIds.Contains(item.Id)) continue;
-
-            newJobs.Add(new Job
-            {
-                ExternalJobId = item.Id,
-                Source = "Lever",
-                Title = item.Text,
-                Company = companyToken,
-                Location = item.Categories?.Location ?? "Unknown",
-                Description = item.DescriptionBody,
-                EmployementType = item.Categories?.Commitment,
-                Category = item.Categories?.Team,
-                JobUrl = item.HostedUrl
-            });
-
-            existingIds.Add(item.Id);
+            return 0;
         }
 
-        _context.Jobs.AddRange(newJobs);
-        await _context.SaveChangesAsync();
-        return newJobs.Count;
-
-    }
-
-    // Save AshbyJob in sql server
-
-    public async Task<int> ImportAshbyJobsAsync(string boardName)
-    {
-        var response = await _ashbyService.GetJobsAsync(boardName);
-
-        if (response == null) return 0;
-
-        var jobs = response.Jobs;
-
+        // Step 2: Collect valid external IDs
         var externalIds = jobs
-            .Select(j => j.Id)
+            .Where(j => !string.IsNullOrWhiteSpace(j.ExternalJobId))
+            .Select(j => j.ExternalJobId)
+            .Distinct()
             .ToList();
 
-        var existingIds = (await _context.Jobs
-            .Where(j =>
-                j.Source == "Ashby" &&
-                externalIds.Contains(j.ExternalJobId))
-            .Select(j => j.ExternalJobId)
-            .ToListAsync())
-            .ToHashSet();
+        // Step 3: Check existing jobs in SQL Server
+        var existingIds = (
+            await _context.Jobs
+                .Where(j =>
+                    j.Source == provider.PlatformName &&
+                    externalIds.Contains(j.ExternalJobId))
+                .Select(j => j.ExternalJobId)
+                .ToListAsync()
+        ).ToHashSet();
 
+        // Step 4: Prepare new jobs
         var newJobs = new List<Job>();
 
         foreach (var item in jobs)
         {
-            // Skip jobs already in SQL Server
-            if (existingIds.Contains(item.Id))
-                continue;
-
-            newJobs.Add(new Job
+            if (string.IsNullOrWhiteSpace(item.ExternalJobId))
             {
-                ExternalJobId = item.Id,
-                Source = "Ashby",
-                Title = item.Title,
-                Company = boardName,
-                Location = item.Location,
-                Description = item.DescriptionHtml,
-                JobUrl = item.JobUrl,
-                EmployementType = item.EmployementType,
-                Category = item.Department
-            });
+                continue;
+            }
 
-            // Prevent duplicates within the same batch
-            existingIds.Add(item.Id);
+            if (existingIds.Contains(item.ExternalJobId))
+            {
+                continue;
+            }
+
+            var newJob = new Job
+            {
+                ExternalJobId = item.ExternalJobId,
+                Source = provider.PlatformName,
+                Title = item.Title,
+                Company = item.Company,
+                Location = item.Location,
+                Description = item.Description,
+                EmployementType = item.EmploymentType,
+                Category = item.Category,
+                JobUrl = item.JobUrl
+            };
+
+            newJobs.Add(newJob);
+
+            // Prevent duplicates in same API response
+            existingIds.Add(item.ExternalJobId);
         }
 
-        Console.WriteLine($"Ashby jobs fetched: {jobs.Count}");
-        Console.WriteLine($"New Ashby jobs: {newJobs.Count}");
+        // Step 5: Save only new jobs
+        if (newJobs.Count > 0)
+        {
+            _context.Jobs.AddRange(newJobs);
 
-        _context.Jobs.AddRange(newJobs);
+            await _context.SaveChangesAsync();
+        }
 
-        await _context.SaveChangesAsync();
+        _logger.LogInformation(
+            "Imported {Count} jobs from {Platform}/{BoardToken}",
+            newJobs.Count,
+            provider.PlatformName,
+            boardToken
+        );
 
         return newJobs.Count;
     }
-
-
 }

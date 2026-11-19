@@ -34,7 +34,7 @@ public class LeverJobProvider : IJobProvider
                 Location = j.Categories?.Location ?? "Unknown",
                 EmploymentType = j.Categories?.Commitment,
                 Description = j.DescriptionBody,
-                Category = j?.Categories?.Team,
+                Category = j.Categories?.Team,
                 JobUrl = j.HostedUrl,
                 ApplyUrl = j.HostedUrl,
                 IsRemote = null
