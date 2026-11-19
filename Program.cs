@@ -1,5 +1,7 @@
 using Hangfire;
 using JobAutoApply.API.Data;
+using JobAutoApply.API.Interface;
+using JobAutoApply.API.Providers;
 using JobAutoApply.API.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +18,9 @@ builder.Services.AddHttpClient<AshbyService>();
 // Application Services
 builder.Services.AddScoped<JobImportService>();
 builder.Services.AddScoped<JobSourceService>();
+builder.Services.AddScoped<IJobProvider, AshbyJobProvider>();
+builder.Services.AddScoped<IJobProvider, LeverJobProvider>();
+builder.Services.AddScoped<IJobProvider, GreenhouseJobProvider>();
 
 // SQL Server + Entity Framework Core
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

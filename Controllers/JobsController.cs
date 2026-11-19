@@ -1,3 +1,6 @@
+using System.Numerics;
+using JobAutoApply.API.Interface;
+using JobAutoApply.API.Providers;
 using JobAutoApply.API.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,14 +15,16 @@ namespace JobAutoApply.API.Controllers
         private readonly JobImportService _jobImportService;
         private readonly LeverService _leverService;
         private readonly AshbyService _ashbyService;
+        private readonly IEnumerable<IJobProvider> _jobProviders;
 
         public JobsController(GreenhouseService greenhouseService, JobImportService jobImportService,
-        LeverService leverService, AshbyService ashbyService)
+        LeverService leverService, AshbyService ashbyService, IEnumerable<IJobProvider> jobProviders)
         {
             _greenhouseservice = greenhouseService;
             _jobImportService = jobImportService;
             _leverService = leverService;
             _ashbyService = ashbyService;
+            _jobProviders = jobProviders;
         }
 
         [HttpGet("greenhouse/{boardToken}")]
@@ -65,7 +70,7 @@ namespace JobAutoApply.API.Controllers
             try
             {
                 var jobs = await _leverService.GetJobsAsync(companyToken);
-                 
+
                 return Ok(jobs);
             }
             catch (HttpRequestException)
@@ -89,9 +94,30 @@ namespace JobAutoApply.API.Controllers
             }
             catch (HttpRequestException)
             {
-                return StatusCode(502, new{message = "Unable to Fetch AshBy Jobs"});
+                return StatusCode(502, new { message = "Unable to Fetch AshBy Jobs" });
             }
-            
+
         }
+
+
+
+        // provider ashby using interface
+        [HttpGet("providers/{platform}/{boardToken}")]
+        public async Task<IActionResult> TestAshbyProvider(string boardToken, string platform)
+        {
+            var provider = _jobProviders.FirstOrDefault(
+                p => p.PlatformName.Equals(
+                    platform, StringComparison.OrdinalIgnoreCase
+                )
+            );
+
+            if (provider == null) return NotFound(new { message = $"{platform} provider not registered" });
+
+
+            var jobs = await provider.GetJobsAsync(boardToken);
+
+            return Ok(new { Platform = provider.PlatformName, boardToken = boardToken, TotalJobs = jobs.Count, Jobs = jobs });
+        }
+
     }
 }
