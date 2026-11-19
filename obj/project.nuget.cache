@@ -1,11 +1,15 @@
 {
   "version": 2,
-  "dgSpecHash": "FC1fGmZfkK4=",
+  "dgSpecHash": "+W2dU0XoMFQ=",
   "success": true,
   "projectFilePath": "E:\\Ai job AutoApply Saas\\JobAutoApply.API\\JobAutoApply.API.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\ar754\\.nuget\\packages\\azure.core\\1.50.0\\azure.core.1.50.0.nupkg.sha512",
     "C:\\Users\\ar754\\.nuget\\packages\\azure.identity\\1.17.1\\azure.identity.1.17.1.nupkg.sha512",
+    "C:\\Users\\ar754\\.nuget\\packages\\hangfire.aspnetcore\\1.8.25\\hangfire.aspnetcore.1.8.25.nupkg.sha512",
+    "C:\\Users\\ar754\\.nuget\\packages\\hangfire.core\\1.8.25\\hangfire.core.1.8.25.nupkg.sha512",
+    "C:\\Users\\ar754\\.nuget\\packages\\hangfire.netcore\\1.8.25\\hangfire.netcore.1.8.25.nupkg.sha512",
+    "C:\\Users\\ar754\\.nuget\\packages\\hangfire.sqlserver\\1.8.25\\hangfire.sqlserver.1.8.25.nupkg.sha512",
     "C:\\Users\\ar754\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\ar754\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.12\\microsoft.aspnetcore.openapi.10.0.12.nupkg.sha512",
     "C:\\Users\\ar754\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\8.0.0\\microsoft.bcl.asyncinterfaces.8.0.0.nupkg.sha512",

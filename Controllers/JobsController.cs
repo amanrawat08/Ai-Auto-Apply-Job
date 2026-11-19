@@ -9,12 +9,17 @@ namespace JobAutoApply.API.Controllers
     public class JobsController : ControllerBase
     {
         private readonly GreenhouseService _greenhouseservice;
-        private readonly JobImportService _jobImportService ;
+        private readonly JobImportService _jobImportService;
+        private readonly LeverService _leverService;
+        private readonly AshbyService _ashbyService;
 
-        public JobsController(GreenhouseService greenhouseService, JobImportService jobImportService)
+        public JobsController(GreenhouseService greenhouseService, JobImportService jobImportService,
+        LeverService leverService, AshbyService ashbyService)
         {
-         _greenhouseservice = greenhouseService;
-         _jobImportService = jobImportService;
+            _greenhouseservice = greenhouseService;
+            _jobImportService = jobImportService;
+            _leverService = leverService;
+            _ashbyService = ashbyService;
         }
 
         [HttpGet("greenhouse/{boardToken}")]
@@ -41,7 +46,7 @@ namespace JobAutoApply.API.Controllers
             return Ok(new
             {
                 Message = "Imported Completed",
-                ImportJobs = imported 
+                ImportJobs = imported
             });
 
         }
@@ -51,6 +56,42 @@ namespace JobAutoApply.API.Controllers
         {
             var result = await _jobImportService.ImportAllJobsAsync();
             return Ok(result);
+        }
+
+        // Lever
+        [HttpPost("lever/{companyToken}")]
+        public async Task<IActionResult> GetLeverJobs(string companyToken)
+        {
+            try
+            {
+                var jobs = await _leverService.GetJobsAsync(companyToken);
+                 
+                return Ok(jobs);
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(502, new
+                {
+                    message = "Unable to fetch Lever jobs."
+                });
+            }
+        }
+
+
+        //Ashby
+        [HttpGet("ashby/{boardName}")]
+        public async Task<IActionResult> GetAshbyJobs(string boardName)
+        {
+            try
+            {
+                var response = await _ashbyService.GetJobsAsync(boardName);
+                return Ok(response);
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(502, new{message = "Unable to Fetch AshBy Jobs"});
+            }
+            
         }
     }
 }
