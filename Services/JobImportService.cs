@@ -1,5 +1,6 @@
 
 using JobAutoApply.API.Data;
+using JobAutoApply.API.DTOs;
 using JobAutoApply.API.Interface;
 using JobAutoApply.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -167,4 +168,116 @@ public class JobImportService
 
         return newJobs.Count;
     }
+
+    // Implement the synchronization of getting jobs
+    public async Task<JobSyncResultDto> SyncJobsAsync(IJobProvider provider, string boardToken)
+    {
+        var jobs = await provider.GetJobsAsync(boardToken);
+        if(jobs==null)
+        {
+            throw new InvalidOperationException("Provider returned a null response");
+        }
+
+        var now= DateTime.UtcNow;
+
+        var result = new JobSyncResultDto
+        {
+            Platform = provider.PlatformName,
+            BoardToken = boardToken,
+            Fetched = jobs.Count,
+            SyncedAt = now  
+        };
+        // Validate incoming job IDs
+        if (jobs.Any(j => string.IsNullOrWhiteSpace(j.ExternalJobId)))
+        {
+            throw new InvalidOperationException("Provider returned jobs with missing IDs.");
+        }
+
+        // Reject duplicate external IDs in one response
+        var duplicateIds = jobs.GroupBy(j=>j.ExternalJobId)
+        .Where(j=>j.Count() > 1).Select(j=>j.Key).ToList();
+
+        if (duplicateIds.Count > 0)
+        {
+            throw new InvalidOperationException(
+            "Provider returned duplicate job IDs.");
+        }
+
+        var externalIds = jobs.Select(j=>j.ExternalJobId).ToList();
+
+        // Query only jobs belonging to this ATS source
+        var existingJobs = await _context.Jobs.Where(
+            j=>j.Source==provider.PlatformName && externalIds.Contains(j.ExternalJobId)
+        ).ToListAsync();
+
+
+        var existingLookup = existingJobs.ToDictionary(j=>j.ExternalJobId);
+
+        foreach (var item in jobs)
+        {
+            if(!existingLookup.TryGetValue(item.ExternalJobId, out var existingJob))
+            {
+                // Insert
+                var newjob = new Job
+                {
+                    ExternalJobId = item.ExternalJobId,
+                    Source = provider.PlatformName,
+                    Title = item.Title,
+                    Company = item.Company,
+                    Location = item.Location,
+                    Description = item.Description,
+                    EmployementType = item.EmploymentType,
+                    Category = item.Category,
+                    JobUrl = item.JobUrl,
+                    IsActive = true,
+                    CreateAt = now,
+                    UpdatedAt = now,
+                    LastSeenAt = now  
+                };
+
+                _context.Jobs.Add(newjob);
+                result.Inserted++;
+                continue;
+            }
+
+            // Updated
+            bool changed = existingJob.Title!=item.Title||
+            existingJob.Company!=item.Company||
+            existingJob.Location!=item.Location||
+            existingJob.Description!=item.Description||
+            existingJob.EmployementType!=item.EmploymentType||
+            existingJob.Category!=item.Category||
+            existingJob.JobUrl!=item.JobUrl;
+
+            if (changed)
+            {
+                existingJob.Title = item.Title;
+                existingJob.Company = item.Company;
+                existingJob.Location= item.Location;
+                existingJob.Description= item.Description;
+                existingJob.EmployementType = item.EmploymentType;
+                existingJob.Category = item.Category;
+                existingJob.JobUrl= item.JobUrl;
+                existingJob.UpdatedAt= now;
+                result.Updated++;
+            }
+
+            if (!existingJob.IsActive)
+            {
+                existingJob.IsActive = true;
+                existingJob.ClosedAt = null;
+                existingJob.UpdatedAt = now;
+                result.Reactivated++;
+            }
+
+            existingJob.LastSeenAt = now;
+        }
+
+        await _context.SaveChangesAsync();
+
+
+        return result;
+
+    }
+
 }

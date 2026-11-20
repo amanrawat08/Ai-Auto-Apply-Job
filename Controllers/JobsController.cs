@@ -1,6 +1,6 @@
- 
-using JobAutoApply.API.Interface; 
-using JobAutoApply.API.Services; 
+
+using JobAutoApply.API.Interface;
+using JobAutoApply.API.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JobAutoApply.API.Controllers
@@ -45,7 +45,7 @@ namespace JobAutoApply.API.Controllers
         public async Task<IActionResult> ImportJobs(string boardToken)
         {
             var provider = _jobProviders.FirstOrDefault(
-                p=>p.PlatformName.Equals("Greenhouse",StringComparison.OrdinalIgnoreCase)
+                p => p.PlatformName.Equals("Greenhouse", StringComparison.OrdinalIgnoreCase)
             );
 
             if (provider == null)
@@ -57,7 +57,7 @@ namespace JobAutoApply.API.Controllers
             }
 
             int imported = await _jobImportService.ImportJobsAsync(provider, boardToken);
-            
+
 
             return Ok(new
             {
@@ -114,7 +114,7 @@ namespace JobAutoApply.API.Controllers
 
         // provider ashby using interface
         [HttpGet("providers/{platform}/{boardToken}")]
-        public async Task<IActionResult> TestAshbyProvider( string platform, string boardToken)
+        public async Task<IActionResult> TestAshbyProvider(string platform, string boardToken)
         {
             var provider = _jobProviders.FirstOrDefault(
                 p => p.PlatformName.Equals(
@@ -132,11 +132,11 @@ namespace JobAutoApply.API.Controllers
 
 
         [HttpPost("import/{platform}/{boardToken}")]
-        public async Task<IActionResult> ImportFromProvider(string platform, string boardToken )
+        public async Task<IActionResult> ImportFromProvider(string platform, string boardToken)
         {
             var provider = _jobProviders.FirstOrDefault(
-                p=>p.PlatformName.Equals(
-                    platform,StringComparison.OrdinalIgnoreCase
+                p => p.PlatformName.Equals(
+                    platform, StringComparison.OrdinalIgnoreCase
                 )
             );
 
@@ -149,12 +149,35 @@ namespace JobAutoApply.API.Controllers
             }
 
             int imported = await _jobImportService.ImportJobsAsync(
-                provider,boardToken
+                provider, boardToken
             );
 
             return Ok(
-                new {platform = provider.PlatformName, boardToken, imported}
+                new { platform = provider.PlatformName, boardToken, imported }
             );
+        }
+
+
+        //[]
+        [HttpPost("sync/{platform}/{boardToken}")]
+        public async Task<IActionResult> SyncJobs(string platform, string boardToken)
+        {
+            var provider = _jobProviders.FirstOrDefault(
+                p => p.PlatformName.Equals(platform, StringComparison.OrdinalIgnoreCase)
+            );
+
+            if (provider == null)
+            {
+                return NotFound(new
+                {
+                    message = $"Provider '{platform}' not registered"
+                });
+            }
+
+            var result = await _jobImportService.SyncJobsAsync(provider,boardToken);
+            return Ok(result);
+
+
         }
     }
 }

@@ -16,4 +16,10 @@ public class Job
     public string? JobUrl {get;set;} = string.Empty;
     public DateTime? CreateAt {get;set;} = DateTime.UtcNow;
 
+    public bool IsActive{get;set;} = true;
+    public string? BoardToken { get; set; }
+    public DateTime? LastSeenAt{get;set;}
+    public DateTime? ClosedAt{get;set;}
+    public DateTime? UpdatedAt{get;set;} = DateTime.UtcNow;
+
 }
