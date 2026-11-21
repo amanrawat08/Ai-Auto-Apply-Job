@@ -10,4 +10,9 @@ public class JobSyncResultDto
     public int Reactivated { get; set; }
     public int Closed { get; set; }
     public DateTime SyncedAt { get; set; }
+    public int MissingDetected{get;set;}
+    public int MissingReset{get;set;}
+    public bool ClosureCheckSkipped{get;set;}
+    public string? ClosureSkipReason{get;set;}
+
 }

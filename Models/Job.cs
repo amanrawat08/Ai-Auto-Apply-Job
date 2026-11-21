@@ -22,4 +22,7 @@ public class Job
     public DateTime? ClosedAt{get;set;}
     public DateTime? UpdatedAt{get;set;} = DateTime.UtcNow;
 
+    public int ConsecutiveMisses {get;set;} = 0;
+    public DateTime? FirstMissingAt{get;set;}
+
 }

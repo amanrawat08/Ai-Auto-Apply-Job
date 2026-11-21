@@ -43,6 +43,9 @@ namespace JobAutoApply.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("ConsecutiveMisses")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("CreateAt")
                         .HasColumnType("datetime2");
 
@@ -55,6 +58,9 @@ namespace JobAutoApply.API.Migrations
                     b.Property<string>("ExternalJobId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("FirstMissingAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
